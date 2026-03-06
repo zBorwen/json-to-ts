@@ -11,9 +11,7 @@ import {
 } from '@/shared/lib/schemas/conversion';
 import { buildSystemPrompt, buildRepairPrompt, buildInitialPrompt } from '@/shared/lib/prompts/conversion-prompt';
 import { EventEmitter, OrchestratorEvent } from '@/shared/lib/schemas/orchestrator-event';
-import * as fs from 'fs';
-import * as path from 'path';
-import { execSync } from 'child_process';
+import { validateTypeScript } from '@/shared/lib/validators/typescript-validator';
 
 /**
  * Generator 编排器配置
@@ -129,12 +127,10 @@ export async function executeConversion(
       message: '执行架构校验...',
     });
 
-    // 3. 物理校验 (确定性外壳)
-    const tempFile = path.join(process.cwd(), `temp-check-${Date.now()}.ts`);
-    fs.writeFileSync(tempFile, typescript);
+    // 3. 物理校验 (确定性外壳) - 纯内存验证，无文件系统依赖
+    const validationResult = validateTypeScript(typescript);
 
-    try {
-      execSync(`npx tsx .agents/skills/json-to-ts/scripts/schema-check.ts ${tempFile}`, { stdio: 'pipe' });
+    if (validationResult.success) {
       console.log(`✅ [Orchestrator]: 架构校验通过 (Attempt ${currentAttempt})`);
 
       // 发射校验通过事件
@@ -165,9 +161,8 @@ export async function executeConversion(
         inputLength: request.json.length,
         outputLength: typescript.length,
       });
-    } catch (error: unknown) {
-      const err = error as { stderr?: Buffer; stdout?: Buffer };
-      lastViolation = err.stderr?.toString() || err.stdout?.toString() || String(error);
+    } else {
+      lastViolation = validationResult.errors.join('\n');
       console.warn(`⚠️ [Orchestrator]: 架构校验失败 (Attempt ${currentAttempt}):\n${lastViolation}`);
 
       // 发射校验失败事件
@@ -211,8 +206,6 @@ export async function executeConversion(
 
       console.log("🛠️ [Orchestrator]: 触发 AI 自愈流程...");
       currentAttempt++;
-    } finally {
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
     }
   }
 
