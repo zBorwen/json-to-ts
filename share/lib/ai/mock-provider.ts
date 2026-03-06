@@ -14,9 +14,11 @@ export class MockAIProvider implements AIProvider {
   async generate(prompt: string): Promise<ReadableStream<string>> {
     // 模拟一段符合规范的代码片段
     const chunks = [
-      "/**\n * 自动生成的响应模型\n */\n",
-      "interface GeneratedResponse {\n",
+      "/**\n * 自动生成的响应模型 (Enterprise Standard)\n */\n",
+      "export interface GeneratedResponse {\n",
+      "  /** 响应 ID */\n",
       "  id: number;\n",
+      "  /** 响应名称 */\n",
       "  name: string;\n",
       "}\n"
     ];

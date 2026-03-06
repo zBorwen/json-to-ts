@@ -12,50 +12,89 @@ export class GeneratorOrchestrator {
   constructor(private provider: AIProvider) { }
 
   /**
-   * 执行转换流水线
+   * 执行转换流水线 (带自愈能力)
    */
   async execute(input: unknown): Promise<ConversionResponse> {
     const startTime = Date.now();
-
-    // 1. Zod 脚本验证输入 (确定性外壳第一层)
     const request = ConversionRequestSchema.parse(input);
 
-    // 2. AI 生成 (概率内核)
-    const stream = await this.provider.generate(request.json);
-    const reader = stream.getReader();
     let typescript = "";
+    let currentAttempt = 1;
+    const maxAttempts = 3;
+    let lastViolation = "";
 
+    while (currentAttempt <= maxAttempts) {
+      console.log(`\n🔄 [Orchestrator]: Attempt ${currentAttempt}/${maxAttempts}...`);
+
+      // 1. 构造提示词 (初始生成 vs 修复生成)
+      const prompt = currentAttempt === 1
+        ? request.json
+        : `
+          ARCHITECTURE VIOLATION DETECTED IN PREVIOUS ATTEMPT.
+          
+          ORIGINAL JSON:
+          ${request.json}
+
+          FAILED CODE:
+          ${typescript}
+
+          ERRORS TO FIX:
+          ${lastViolation}
+
+          INSTRUCTION:
+          Analyze the errors above. Rewrite the TypeScript interfaces to be 100% compliant with the rules (PascalCase, Export, JSDoc, No Any).
+          Return ONLY the fixed TypeScript code.
+        `;
+
+      // 2. AI 生成 (概率内核)
+      const stream = await this.provider.generate(prompt);
+      typescript = await this.readStream(stream);
+
+      // 3. 物理校验 (确定性外壳)
+      const tempFile = path.join(process.cwd(), `temp-check-${Date.now()}.ts`);
+      fs.writeFileSync(tempFile, typescript);
+
+      try {
+        execSync(`npx tsx .agents/skills/json-to-ts/scripts/schema-check.ts ${tempFile}`, { stdio: 'pipe' });
+        console.log(`✅ [Orchestrator]: 架构校验通过 (Attempt ${currentAttempt})`);
+
+        return {
+          typescript,
+          metadata: {
+            duration: Date.now() - startTime,
+            interfaceCount: (typescript.match(/interface /g) || []).length
+          }
+        };
+      } catch (error: any) {
+        lastViolation = error.stderr?.toString() || error.stdout?.toString() || String(error);
+        console.warn(`⚠️ [Orchestrator]: 架构校验失败 (Attempt ${currentAttempt}):\n${lastViolation}`);
+
+        if (currentAttempt === maxAttempts) {
+          console.error("❌ [Orchestrator]: 自愈失败，已达到最大重试次数。");
+          throw new Error(`Architectural Violation (Self-healing failed): ${lastViolation}`);
+        }
+
+        console.log("🛠️ [Orchestrator]: 触发 AI 自愈流程...");
+        currentAttempt++;
+      } finally {
+        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+      }
+    }
+
+    throw new Error("Unexpected orchestrator state.");
+  }
+
+  /**
+   * 辅助函数：读取 ReadableStream
+   */
+  private async readStream(stream: ReadableStream<string>): Promise<string> {
+    const reader = stream.getReader();
+    let content = "";
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      typescript += value;
+      content += value;
     }
-
-    // 3. 物理校验 (确定性外壳第二层)
-    // 写入临时文件进行 ts-check
-    const tempFile = path.join(process.cwd(), 'temp-check.ts');
-    fs.writeFileSync(tempFile, typescript);
-
-    try {
-      // 调用 Phase 1 部署的校验脚本
-      execSync(`npx tsx .agents/skills/json-to-ts/scripts/schema-check.ts ${tempFile}`, { stdio: 'pipe' });
-      console.log("✅ [Orchestrator]: 架构校验通过");
-    } catch (error: unknown) {
-      console.error("❌ [Orchestrator]: 架构校验失败，触发 Agent 自愈语义...");
-      // 注意：物理脚本会抛出异常，这里通过日志触发 Agent 的 auto-loop 规则
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const stdout = (error as any).stdout?.toString() || "";
-      throw new Error(`Architectural Violation: ${stdout || errorMessage}`);
-    } finally {
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    }
-
-    return {
-      typescript,
-      metadata: {
-        duration: Date.now() - startTime,
-        interfaceCount: (typescript.match(/interface /g) || []).length
-      }
-    };
+    return content;
   }
 }
