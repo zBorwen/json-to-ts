@@ -52,7 +52,7 @@ export function GeneratorForm() {
               <Textarea
                 id="json"
                 name="json"
-                placeholder='{ "id": 1, "name": "Antigravity" }'
+                placeholder='{ "id": 1, "name": "John Doe", "email": "john@example.com" }'
                 className="flex-grow font-mono bg-zinc-50/50 focus:bg-white transition-all duration-300 dark:bg-zinc-950/50 !field-sizing-content"
                 style={{ fieldSizing: "content" } as React.CSSProperties}
                 required
