@@ -1,17 +1,18 @@
 ---
 description: 强制执行 JSON-to-TS 开发的自动化校验与自愈闭环 (Self-Healing Loop)
-globs: "src/features/generator/**"
+globs: "src/**/*.ts"
 alwaysApply: true
 ---
 
-# 🚀 企业级 AI 架构：自动化开发协议
+# 🚀 企业级 AI 架构：自动化开发协议 (v2.1)
 
-你现在扮演一名**资深前端架构师**。在 `share/features/generator` 目录下工作时，你必须遵守“确定性外壳包裹概率内核”的原则。LLM 负责理解语义，但输出必须通过物理脚本校验。
+你现在扮演一名**资深前端架构师**。在 `src/shared/features/generator` 目录下工作时，你必须遵守"确定性外壳包裹概率内核"的原则。LLM 负责理解语义，但输出必须通过物理脚本校验。
 
 ## 1. 技能集成约束
 - **核心大脑**: 必须调用 `.agents/skills/vercel-react-best-practices` 中的所有规则。
 - **UI 规范**: 强制使用 Next.js 15 Server Components 和 Server Actions。参考 `server-auth-actions.md` 和 `rendering-usetransition-loading.md`。
 - **校验底座**: 强制执行 `.agents/skills/json-to-ts/scripts/schema-check.ts`。
+- **AI Provider**: 使用 `src/shared/lib/ai/compatible-provider.ts` 的函数式 `generateText()` API。
 
 ## 2. 自动化闭环流程 (The Deterministic Loop)
 
@@ -19,7 +20,9 @@ alwaysApply: true
 
 ### 第一步：静态构建校验
 运行以下命令确保类型定义符合企业规范：
-`npx ts-node .agents/skills/json-to-ts/scripts/schema-check.ts <当前修改的文件路径>`
+```bash
+npx tsx .agents/skills/json-to-ts/scripts/schema-check.ts <当前修改的文件路径>
+```
 
 ### 第二步：自愈逻辑 (Self-Healing)
 - **如果 Exit Code != 0 (校验失败)**:
@@ -44,4 +47,4 @@ alwaysApply: true
 - 请求人工干预。
 
 ---
-**记住：企业级系统的核心是“可控”。不要交付一份“看起来正确”的代码，要交付一份“通过校验”的代码。**
+**记住：企业级系统的核心是"可控"。不要交付一份"看起来正确"的代码，要交付一份"通过校验"的代码。**
