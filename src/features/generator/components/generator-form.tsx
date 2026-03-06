@@ -30,9 +30,6 @@ export function GeneratorForm() {
     }
   };
 
-  // 判断是否有结果 (无论成功或失败)
-  const hasResult = state.success || state.error;
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 items-start">
       {/* 输入区域 */}
