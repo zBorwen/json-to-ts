@@ -7,7 +7,10 @@ This project implements a hybrid AI architecture designed for enterprise-grade s
 ### 🔍 1. The Probabilistic Core (AI Layer)
 - **Role**: LLM (Large Language Model) responsible for semantic understanding.
 - **Characteristics**: High creative flexibility, but naturally non-deterministic.
-- **Implementation**: Decoupled via the `AIProvider` interface. In development, `MockAIProvider` simulates this core without requiring external API keys.
+- **Implementation**: Decoupled via the `AIProvider` interface. 
+  - **OpenAIProvider**: Uses GPT-4o for SOTA results.
+  - **QwenProvider**: Uses Alibaba DashScope (OpenAI Compatible) with `qwen3.5-plus`.
+  - **MockAIProvider**: Simulates this core without requiring external API keys.
 
 ### 🛡 2. The Deterministic Shell (Validation Layer)
 - **Role**: Hard-constraint verification that wraps the probabilistic output.

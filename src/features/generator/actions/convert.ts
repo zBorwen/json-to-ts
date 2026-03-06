@@ -2,6 +2,7 @@
 
 import { MockAIProvider } from "@/../share/lib/ai/mock-provider";
 import { OpenAIProvider } from "@/../share/lib/ai/openai-provider";
+import { QwenProvider } from "@/../share/lib/ai/qwen-provider";
 import { GeneratorOrchestrator } from "@/../share/features/generator/orchestrator";
 import { ConversionResponse } from "@/../share/lib/schemas/conversion";
 import { AIProvider } from "@/../share/lib/ai/types";
@@ -19,9 +20,12 @@ export async function convertAction(
   const includeJSDoc = formData.get("includeJSDoc") === "on";
 
   // 根据环境变量自动选择提供者 (平衡概率内核的接入方式)
-  const provider: AIProvider = process.env.OPENAI_API_KEY
-    ? new OpenAIProvider()
-    : new MockAIProvider();
+  // 优先级: DashScope (Qwen) > OpenAI > Mock
+  const provider: AIProvider = process.env.DASHSCOPE_API_KEY
+    ? new QwenProvider()
+    : process.env.OPENAI_API_KEY
+      ? new OpenAIProvider()
+      : new MockAIProvider();
 
   const orchestrator = new GeneratorOrchestrator(provider);
 

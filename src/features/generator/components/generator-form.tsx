@@ -28,11 +28,11 @@ export function GeneratorForm() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 items-start">
       {/* 输入区域 */}
-      <form action={formAction} className="space-y-6">
-        <Card className="border-none bg-white/60 backdrop-blur-xl shadow-2xl ring-1 ring-black/5 dark:bg-zinc-900/60 dark:ring-white/10">
-          <CardHeader>
+      <form action={formAction} className="w-full">
+        <Card className="flex flex-col h-[750px] border-none bg-white/60 backdrop-blur-xl shadow-2xl ring-1 ring-black/5 dark:bg-zinc-900/60 dark:ring-white/10 overflow-hidden">
+          <CardHeader className="flex-none">
             <CardTitle className="flex items-center gap-2 text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
               <Zap className="fill-indigo-600 text-indigo-600" />
               JSON 入参
@@ -41,8 +41,8 @@ export function GeneratorForm() {
               输入原始 JSON 数据，系统将自动基于 Vercel 专家级规范生成 TypeScript 类型。
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+          <CardContent className="flex-grow overflow-y-auto space-y-6 px-6 pb-6 pt-0 premium-scrollbar">
+            <div className="space-y-2 flex flex-col h-[500px]">
               <Label htmlFor="json" className="text-sm font-semibold">
                 JSON 原文
               </Label>
@@ -50,11 +50,12 @@ export function GeneratorForm() {
                 id="json"
                 name="json"
                 placeholder='{ "id": 1, "name": "Antigravity" }'
-                className="min-h-[300px] font-mono bg-zinc-50/50 focus:bg-white transition-all duration-300 dark:bg-zinc-950/50"
+                className="flex-grow font-mono bg-zinc-50/50 focus:bg-white transition-all duration-300 dark:bg-zinc-950/50 !field-sizing-content"
+                style={{ fieldSizing: "content" } as React.CSSProperties}
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 flex-none pt-2">
               <div className="space-y-2">
                 <Label htmlFor="rootName" className="text-sm font-semibold">
                   根接口名称
@@ -81,7 +82,7 @@ export function GeneratorForm() {
               </div>
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex-none p-6 pt-0 border-t border-zinc-100 dark:border-zinc-800/50 mt-auto">
             <Button
               type="submit"
               disabled={isPending}
@@ -101,9 +102,9 @@ export function GeneratorForm() {
       </form>
 
       {/* 输出区域 */}
-      <div className="space-y-6">
-        <Card className="border-none bg-zinc-950 text-zinc-50 shadow-2xl overflow-hidden min-h-[500px] flex flex-col">
-          <CardHeader className="border-b border-zinc-800 bg-zinc-900/50">
+      <div className="w-full">
+        <Card className="flex flex-col h-[750px] border-none bg-zinc-950 text-zinc-50 shadow-2xl overflow-hidden">
+          <CardHeader className="flex-none border-b border-zinc-800 bg-zinc-900/50">
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle className="text-xl font-bold flex items-center gap-2 text-indigo-400">
@@ -130,7 +131,7 @@ export function GeneratorForm() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0 flex-grow relative group">
+          <CardContent className="flex-grow p-0 relative group overflow-hidden">
             {state.error && (
               <div className="absolute inset-0 z-10 bg-red-900/20 backdrop-blur-sm flex items-center justify-center p-6 text-center">
                 <div className="space-y-2 max-w-md">
@@ -142,7 +143,7 @@ export function GeneratorForm() {
               </div>
             )}
             
-            <pre className="p-6 font-mono text-sm overflow-auto h-[500px] scrollbar-thin scrollbar-thumb-zinc-800">
+            <pre className="p-6 font-mono text-sm overflow-auto h-full premium-scrollbar">
               {state.data?.typescript ? (
                 <code className="text-indigo-300">{state.data.typescript}</code>
               ) : (
