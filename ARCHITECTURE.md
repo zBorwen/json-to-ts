@@ -148,7 +148,7 @@ User Input (JSON)
 **The Single Source of Truth** for request/response contracts.
 
 - JSON syntax pre-validation using `z.refine`
-- PascalCase format validation for root names
+- **Smart Root Naming**: AI automatically infers semantic interface names (no manual `rootName` input)
 - Extended metadata: `provider`, `model`, `attempts`, `inputLength`, `outputLength`
 - Success flag: `success: boolean` for explicit status
 

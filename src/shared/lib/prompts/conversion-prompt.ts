@@ -34,7 +34,17 @@ Your task is to analyze the input JSON and generate "Enterprise-Grade" TypeScrip
    - Use Union Types for low-cardinality strings.
    - Handle Discriminated Unions if a \`type\` field exists.
 
-6. **Output Format**:
+6. **Smart Root Interface Naming (CRITICAL)**:
+   - Analyze the JSON structure and semantic context to infer a meaningful root interface name.
+   - NEVER use generic names like \`Root\`, \`Data\`, \`Result\` unless truly appropriate.
+   - Derive names from the actual data meaning:
+     - \`{"name": "John", "age": 30}\` → \`Person\` or \`User\`
+     - \`{"products": [...], "total": 100}\` → \`ProductCatalog\` or \`ProductListResponse\`
+     - \`{"id": 1, "title": "Hello", "body": "..."}\` → \`Post\` or \`Article\`
+     - \`{"code": 0, "data": {...}, "message": "ok"}\` → \`ApiResponse\` with nested \`{Domain}Data\`
+   - If the JSON is an array at root level, infer the item type name and use \`{ItemName}[]\`.
+
+7. **Output Format**:
    - Return **ONLY** raw TypeScript code.
    - **NO** markdown backticks (\`\`\`).
    - Start immediately with the code.
@@ -81,8 +91,6 @@ export function buildInitialPrompt(json: string): string {
 export interface PromptOptions {
   /** 是否包含 JSDoc 注释 */
   includeJSDoc?: boolean;
-  /** 自定义根接口名称 */
-  rootName?: string;
   /** 附加约束规则 */
   additionalRules?: string[];
 }
@@ -93,14 +101,9 @@ export interface PromptOptions {
 export function buildSystemPrompt(options?: PromptOptions): string {
   let prompt = CONVERSION_SYSTEM_PROMPT;
 
-  if (options?.rootName) {
-    prompt += `\n\n7. **Root Interface Name**: Name the root interface as \`${options.rootName}\`.`;
-  }
-
   if (options?.additionalRules?.length) {
-    const startNum = options.rootName ? 8 : 7;
     options.additionalRules.forEach((rule, index) => {
-      prompt += `\n\n${startNum + index}. ${rule}`;
+      prompt += `\n\n${8 + index}. ${rule}`;
     });
   }
 

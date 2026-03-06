@@ -110,9 +110,10 @@ AI_MODEL=gpt-4o-mini        # 可选: 模型名称
 import { executeConversion } from '@/shared/features/generator/orchestrator';
 
 const result = await executeConversion({
-  jsonInput: '{"name": "John", "age": 30}',
-  rootName: 'User',
+  json: '{"name": "John", "age": 30}',
+  includeJSDoc: true,
 });
+// Note: rootName 已移除，AI 将自动根据 JSON 语义推断接口名称
 
 // AI Provider (底层)
 import { generate, generateText } from '@/shared/lib/ai/compatible-provider';

@@ -7,7 +7,9 @@ import { OrchestratorEvent } from '@/shared/lib/schemas/orchestrator-event';
  * 
  * @example
  * POST /api/generate/stream
- * Body: { json: '{"name":"John"}', rootName: 'User', includeJSDoc: true }
+ * Body: { json: '{"name":"John"}', includeJSDoc: true }
+ * 
+ * Note: rootName 已移除，AI 将自动根据 JSON 语义推断接口名称
  */
 export async function POST(request: NextRequest) {
   const body = await request.json();

@@ -22,14 +22,6 @@ const jsonStringSchema = z.string()
     { message: "无效的 JSON 语法，请检查格式" }
   );
 
-/**
- * PascalCase 命名校验器
- */
-const pascalCaseSchema = z.string()
-  .regex(/^[A-Z][a-zA-Z0-9]*$/, "名称必须符合 PascalCase 格式 (如: UserProfile)")
-  .min(2, "名称长度至少为 2 个字符")
-  .max(64, "名称长度不能超过 64 个字符");
-
 // ============================================================================
 // 请求 Schema
 // ============================================================================
@@ -37,12 +29,12 @@ const pascalCaseSchema = z.string()
 /**
  * JSON 转换请求架构
  * 用于验证用户提交的原始 JSON 及配置项
+ * 
+ * Note: rootName 已移除，AI 将自动根据 JSON 语义推断合适的接口名称
  */
 export const ConversionRequestSchema = z.object({
   /** 原始 JSON 字符串 (必须是有效的 JSON 语法) */
   json: jsonStringSchema,
-  /** 目标根接口名称 */
-  rootName: pascalCaseSchema.default("Root"),
   /** 是否生成 JSDoc 注释 */
   includeJSDoc: z.boolean().default(true),
   /** 可选：指定使用的 Provider */

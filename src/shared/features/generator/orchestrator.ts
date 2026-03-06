@@ -84,8 +84,8 @@ export async function executeConversion(
   const request = parseResult.data;
 
   // 构建系统提示词 (根据请求配置)
+  // Note: rootName 已移除，AI 将根据 JSON 语义自动推断接口名称
   const systemPrompt = buildSystemPrompt({
-    rootName: request.rootName,
     includeJSDoc: request.includeJSDoc,
   });
 

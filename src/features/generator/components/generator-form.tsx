@@ -4,13 +4,13 @@ import { useState, useCallback, useRef } from "react";
 import { ConversionResponse } from "@/shared/lib/schemas/conversion";
 import { OrchestratorState, OrchestratorEvent, createInitialOrchestratorState } from "@/shared/lib/schemas/orchestrator-event";
 import { StatusPanel } from "./status-panel";
+import { useTypewriter } from "@/hooks/use-typewriter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Zap, Copy, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Zap, Copy, CheckCircle2, XCircle, SkipForward } from "lucide-react";
 
 /**
  * Enterprise JSON-to-TS Generator Form
@@ -34,7 +34,6 @@ export function GeneratorForm() {
     
     const formData = new FormData(e.currentTarget);
     const json = formData.get('json') as string;
-    const rootName = formData.get('rootName') as string;
     const includeJSDoc = formData.get('includeJSDoc') === 'on';
     
     // 重置状态
@@ -54,7 +53,7 @@ export function GeneratorForm() {
       const response = await fetch('/api/generate/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ json, rootName, includeJSDoc }),
+        body: JSON.stringify({ json, includeJSDoc }),
         signal: abortController.signal,
       });
       
@@ -155,6 +154,16 @@ export function GeneratorForm() {
     }
   }, []);
 
+  // 打字机效果 - 校验通过后流式显示代码
+  const { displayText, isTyping, skipAnimation, progress } = useTypewriter(
+    result?.typescript || "",
+    {
+      charDelay: 2,      // 2ms per char = ~500 chars/sec
+      initialDelay: 200, // 等待 200ms 后开始
+      enabled: result?.success === true,
+    }
+  );
+
   const handleCopy = () => {
     if (result?.typescript) {
       navigator.clipboard.writeText(result.typescript);
@@ -190,31 +199,17 @@ export function GeneratorForm() {
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-4 flex-none pt-2">
-              <div className="space-y-2">
-                <Label htmlFor="rootName" className="text-sm font-semibold">
-                  根接口名称
-                </Label>
-                <Input
-                  id="rootName"
-                  name="rootName"
-                  placeholder="RootResponse"
-                  defaultValue="Root"
-                  className="bg-zinc-50/50 focus:bg-white dark:bg-zinc-950/50"
-                />
-              </div>
-              <div className="flex items-end pb-2 gap-2">
-                <input
-                  type="checkbox"
-                  id="includeJSDoc"
-                  name="includeJSDoc"
-                  defaultChecked
-                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
-                />
-                <Label htmlFor="includeJSDoc" className="cursor-pointer select-none">
-                  包含 JSDoc 注释
-                </Label>
-              </div>
+            <div className="flex items-center gap-2 flex-none pt-2">
+              <input
+                type="checkbox"
+                id="includeJSDoc"
+                name="includeJSDoc"
+                defaultChecked
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+              />
+              <Label htmlFor="includeJSDoc" className="cursor-pointer select-none">
+                包含 JSDoc 注释
+              </Label>
             </div>
           </CardContent>
           <CardFooter className="flex-none p-6 pt-0 border-t border-zinc-100 dark:border-zinc-800/50 mt-auto">
@@ -291,6 +286,18 @@ export function GeneratorForm() {
                 )}
               </div>
               <div className="flex gap-2">
+                {/* 打字中显示跳过按钮 */}
+                {isTyping && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={skipAnimation}
+                    className="hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50"
+                    title="跳过动画"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                )}
                 {result?.typescript && (
                   <Button
                     variant="ghost"
@@ -305,6 +312,16 @@ export function GeneratorForm() {
             </div>
           </CardHeader>
           <CardContent className="flex-grow p-0 relative group overflow-hidden">
+            {/* 打字进度条 */}
+            {isTyping && (
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-zinc-800 z-20">
+                <div 
+                  className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-100"
+                  style={{ width: `${progress * 100}%` }}
+                />
+              </div>
+            )}
+            
             {/* 错误展示 */}
             {result?.error && (
               <div className="absolute inset-0 z-10 bg-red-900/20 backdrop-blur-sm flex items-center justify-center p-6 text-center">
@@ -317,10 +334,16 @@ export function GeneratorForm() {
               </div>
             )}
             
-            {/* 代码展示 */}
+            {/* 代码展示 - 使用打字机效果 */}
             <pre className="p-6 font-mono text-sm overflow-auto h-full premium-scrollbar">
               {result?.typescript ? (
-                <code className="text-indigo-300">{result.typescript}</code>
+                <code className="text-indigo-300">
+                  {displayText}
+                  {/* 打字光标 */}
+                  {isTyping && (
+                    <span className="inline-block w-2 h-4 ml-0.5 bg-indigo-400 animate-pulse" />
+                  )}
+                </code>
               ) : (
                 <div className="h-full flex items-center justify-center text-zinc-600 italic">
                   等待输入 JSON 数据并提交...
