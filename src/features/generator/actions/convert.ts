@@ -1,8 +1,10 @@
 "use server";
 
 import { MockAIProvider } from "@/../share/lib/ai/mock-provider";
+import { OpenAIProvider } from "@/../share/lib/ai/openai-provider";
 import { GeneratorOrchestrator } from "@/../share/features/generator/orchestrator";
 import { ConversionResponse } from "@/../share/lib/schemas/conversion";
+import { AIProvider } from "@/../share/lib/ai/types";
 
 /**
  * 转换 Server Action
@@ -16,8 +18,11 @@ export async function convertAction(
   const rootName = (formData.get("rootName") as string) || "Root";
   const includeJSDoc = formData.get("includeJSDoc") === "on";
 
-  // 在 Phase 2 阶段，我们强制使用 MockAIProvider
-  const provider = new MockAIProvider();
+  // 根据环境变量自动选择提供者 (平衡概率内核的接入方式)
+  const provider: AIProvider = process.env.OPENAI_API_KEY
+    ? new OpenAIProvider()
+    : new MockAIProvider();
+
   const orchestrator = new GeneratorOrchestrator(provider);
 
   try {
