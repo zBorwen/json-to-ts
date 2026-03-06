@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import { convertAction } from "../actions/convert";
+import { useState, useCallback, useRef } from "react";
 import { ConversionResponse } from "@/shared/lib/schemas/conversion";
+import { OrchestratorState, OrchestratorEvent, createInitialOrchestratorState } from "@/shared/lib/schemas/orchestrator-event";
+import { StatusPanel } from "./status-panel";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -11,29 +12,160 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { toast } from "sonner";
 import { Loader2, Zap, Copy, CheckCircle2, XCircle } from "lucide-react";
 
-// 初始状态
-const initialState: ConversionResponse = {
-  success: false,
-};
-
 /**
  * Enterprise JSON-to-TS Generator Form
- * 使用 React 19 useActionState 处理表单逻辑
+ * 使用 SSE 实时展示自愈循环状态
  */
 export function GeneratorForm() {
-  const [state, formAction, isPending] = useActionState(convertAction, initialState);
+  const [result, setResult] = useState<ConversionResponse | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [orchestratorState, setOrchestratorState] = useState<OrchestratorState>(
+    createInitialOrchestratorState()
+  );
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    // 取消之前的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    const formData = new FormData(e.currentTarget);
+    const json = formData.get('json') as string;
+    const rootName = formData.get('rootName') as string;
+    const includeJSDoc = formData.get('includeJSDoc') === 'on';
+    
+    // 重置状态
+    setIsPending(true);
+    setResult(null);
+    setOrchestratorState({
+      status: 'running',
+      currentAttempt: 0,
+      maxAttempts: 3,
+      events: [],
+    });
+    
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    try {
+      const response = await fetch('/api/generate/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ json, rootName, includeJSDoc }),
+        signal: abortController.signal,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+      
+      const decoder = new TextDecoder();
+      let buffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        // 解析 SSE 事件
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.slice(6));
+              
+              // 处理最终结果事件
+              if (eventData.type === 'result') {
+                setResult(eventData.data);
+                setOrchestratorState(prev => ({
+                  ...prev,
+                  status: eventData.data.success ? 'success' : 'failed',
+                  typescript: eventData.data.typescript,
+                  error: eventData.data.error,
+                  duration: eventData.data.metadata?.duration,
+                  provider: eventData.data.metadata?.provider,
+                }));
+                continue;
+              }
+              
+              // 处理普通事件
+              const event = eventData as OrchestratorEvent;
+              setOrchestratorState(prev => {
+                const newState: OrchestratorState = {
+                  ...prev,
+                  events: [...prev.events, event],
+                };
+                
+                // 更新当前尝试次数
+                if (event.attempt) {
+                  newState.currentAttempt = event.attempt;
+                }
+                if (event.maxAttempts) {
+                  newState.maxAttempts = event.maxAttempts;
+                }
+                
+                // 更新状态
+                if (event.type === 'complete') {
+                  newState.status = 'success';
+                  newState.typescript = event.typescript;
+                  newState.duration = event.duration;
+                  newState.provider = event.provider;
+                } else if (event.type === 'error') {
+                  newState.status = 'failed';
+                  newState.error = event.message;
+                  newState.duration = event.duration;
+                }
+                
+                return newState;
+              });
+            } catch {
+              console.warn('Failed to parse SSE event:', line);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        return; // 请求被取消，忽略
+      }
+      
+      console.error('SSE error:', error);
+      setOrchestratorState(prev => ({
+        ...prev,
+        status: 'failed',
+        events: [...prev.events, {
+          type: 'error',
+          timestamp: Date.now(),
+          message: error instanceof Error ? error.message : '未知错误',
+        }],
+      }));
+      toast.error('转换失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setIsPending(false);
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   const handleCopy = () => {
-    if (state.typescript) {
-      navigator.clipboard.writeText(state.typescript);
+    if (result?.typescript) {
+      navigator.clipboard.writeText(result.typescript);
       toast.success("代码已复制到剪贴板");
     }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 items-start">
-      {/* 输入区域 */}
-      <form action={formAction} className="w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full max-w-[1600px] mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 items-start">
+      {/* 左侧: 输入区域 */}
+      <form onSubmit={handleSubmit} className="w-full lg:col-span-1">
         <Card className="flex flex-col h-[750px] border-none bg-white/60 backdrop-blur-xl shadow-2xl ring-1 ring-black/5 dark:bg-zinc-900/60 dark:ring-white/10 overflow-hidden">
           <CardHeader className="flex-none">
             <CardTitle className="flex items-center gap-2 text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
@@ -45,7 +177,7 @@ export function GeneratorForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-grow overflow-y-auto space-y-6 px-6 pb-6 pt-0 premium-scrollbar">
-            <div className="space-y-2 flex flex-col h-[500px]">
+            <div className="space-y-2 flex flex-col h-[400px]">
               <Label htmlFor="json" className="text-sm font-semibold">
                 JSON 原文
               </Label>
@@ -104,19 +236,34 @@ export function GeneratorForm() {
         </Card>
       </form>
 
-      {/* 输出区域 */}
-      <div className="w-full">
+      {/* 中间: 状态面板 */}
+      <div className="w-full lg:col-span-1">
+        <Card className="flex flex-col h-[750px] border-none bg-zinc-950 text-zinc-50 shadow-2xl overflow-hidden">
+          <CardHeader className="flex-none border-b border-zinc-800 bg-zinc-900/50 py-3">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-zinc-300">执行日志</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-grow p-0 overflow-hidden">
+            <StatusPanel state={orchestratorState} className="h-full rounded-none border-0" />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 右侧: 输出区域 */}
+      <div className="w-full lg:col-span-1">
         <Card className="flex flex-col h-[750px] border-none bg-zinc-950 text-zinc-50 shadow-2xl overflow-hidden">
           <CardHeader className="flex-none border-b border-zinc-800 bg-zinc-900/50">
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  {state.success ? (
+                  {result?.success ? (
                     <>
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                       <span className="text-indigo-400">TypeScript 输出</span>
                     </>
-                  ) : state.error ? (
+                  ) : result?.error ? (
                     <>
                       <XCircle className="w-5 h-5 text-red-500" />
                       <span className="text-red-400">生成失败</span>
@@ -128,23 +275,23 @@ export function GeneratorForm() {
                     </>
                   )}
                 </CardTitle>
-                {state.metadata && (
+                {result?.metadata && (
                   <CardDescription className="text-zinc-500 flex gap-3 mt-1 flex-wrap">
-                    <span>耗时: {state.metadata.duration}ms</span>
-                    {state.metadata.interfaceCount !== undefined && (
-                      <span>接口数: {state.metadata.interfaceCount}</span>
+                    <span>耗时: {result.metadata.duration}ms</span>
+                    {result.metadata.interfaceCount !== undefined && (
+                      <span>接口数: {result.metadata.interfaceCount}</span>
                     )}
-                    {state.metadata.attempts && state.metadata.attempts > 1 && (
-                      <span className="text-amber-500">自愈重试: {state.metadata.attempts}次</span>
+                    {result.metadata.attempts && result.metadata.attempts > 1 && (
+                      <span className="text-amber-500">自愈重试: {result.metadata.attempts}次</span>
                     )}
-                    {state.metadata.provider && (
-                      <span className="text-indigo-400">Provider: {state.metadata.provider}</span>
+                    {result.metadata.provider && (
+                      <span className="text-indigo-400">Provider: {result.metadata.provider}</span>
                     )}
                   </CardDescription>
                 )}
               </div>
               <div className="flex gap-2">
-                {state.typescript && (
+                {result?.typescript && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -159,12 +306,12 @@ export function GeneratorForm() {
           </CardHeader>
           <CardContent className="flex-grow p-0 relative group overflow-hidden">
             {/* 错误展示 */}
-            {state.error && (
+            {result?.error && (
               <div className="absolute inset-0 z-10 bg-red-900/20 backdrop-blur-sm flex items-center justify-center p-6 text-center">
                 <div className="space-y-2 max-w-md">
                   <div className="text-red-400 font-bold">❌ 校验异常 (Deterministic Shell Error)</div>
                   <div className="text-sm text-red-300 font-mono text-left bg-black/40 p-4 rounded-lg overflow-auto max-h-[300px]">
-                    {state.error}
+                    {result.error}
                   </div>
                 </div>
               </div>
@@ -172,8 +319,8 @@ export function GeneratorForm() {
             
             {/* 代码展示 */}
             <pre className="p-6 font-mono text-sm overflow-auto h-full premium-scrollbar">
-              {state.typescript ? (
-                <code className="text-indigo-300">{state.typescript}</code>
+              {result?.typescript ? (
+                <code className="text-indigo-300">{result.typescript}</code>
               ) : (
                 <div className="h-full flex items-center justify-center text-zinc-600 italic">
                   等待输入 JSON 数据并提交...
