@@ -19,16 +19,20 @@
 
 ---
 
-### 2. 实现 Streaming UI
-- [ ] 使用 Vercel AI SDK 的 `streamText` API
-- [ ] 前端实现流式显示生成过程
-- [ ] 添加生成进度指示器
-- [ ] 优化用户等待体验
+### 2. ~~实现 Streaming UI~~ ✅ 已完成
+- [x] ~~使用 Vercel AI SDK 的 `streamText` API~~ → 使用 SSE 事件流实现（更适合自愈循环场景）
+- [x] 前端实现流式显示生成过程
+- [x] 添加生成进度指示器
+- [x] 优化用户等待体验
 
-**文件影响**:
-- 修改 `src/shared/lib/ai/compatible-provider.ts`
-- 修改 `src/shared/features/generator/conversion.ts`
-- 修改 `src/app/generator-form.tsx`
+**实现方案**:
+- 新建 `src/app/api/generate/stream/route.ts` - SSE 流式 API 端点
+- 新建 `src/features/generator/components/status-panel.tsx` - 实时状态面板
+- 新建 `src/shared/lib/schemas/orchestrator-event.ts` - 事件类型定义
+- 修改 `src/shared/features/generator/orchestrator.ts` - 添加 `onEvent` 回调
+- 修改 `src/features/generator/components/generator-form.tsx` - 三栏布局集成
+
+**技术说明**: 选择 SSE 而非 `streamText` 是因为自愈循环需要传递结构化元数据（attempt, violations, duration），而非仅仅是文本流
 
 ---
 
@@ -172,7 +176,8 @@
 - [x] Agent Skills 文档同步
 - [x] 代码清理 (无效变量/引用)
 - [x] 目录结构规范化 (`src/shared/`)
+- [x] **Streaming UI 实时状态展示** - SSE 事件流 + 三栏布局 + 自愈循环可视化 (2026-03-06)
 
 ---
 
-*最后更新: 2026-03-06 14:48 CST*
+*最后更新: 2026-03-06 15:50 CST*
