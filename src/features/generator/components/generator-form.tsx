@@ -2,30 +2,36 @@
 
 import { useActionState } from "react";
 import { convertAction } from "../actions/convert";
+import { ConversionResponse } from "@/shared/lib/schemas/conversion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Zap, Copy } from "lucide-react";
+import { Loader2, Zap, Copy, CheckCircle2, XCircle } from "lucide-react";
+
+// 初始状态
+const initialState: ConversionResponse = {
+  success: false,
+};
 
 /**
  * Enterprise JSON-to-TS Generator Form
  * 使用 React 19 useActionState 处理表单逻辑
  */
 export function GeneratorForm() {
-  const [state, formAction, isPending] = useActionState(convertAction, {
-    data: undefined,
-    error: undefined,
-  });
+  const [state, formAction, isPending] = useActionState(convertAction, initialState);
 
   const handleCopy = () => {
-    if (state.data?.typescript) {
-      navigator.clipboard.writeText(state.data.typescript);
+    if (state.typescript) {
+      navigator.clipboard.writeText(state.typescript);
       toast.success("代码已复制到剪贴板");
     }
   };
+
+  // 判断是否有结果 (无论成功或失败)
+  const hasResult = state.success || state.error;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 items-start">
@@ -107,18 +113,41 @@ export function GeneratorForm() {
           <CardHeader className="flex-none border-b border-zinc-800 bg-zinc-900/50">
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-xl font-bold flex items-center gap-2 text-indigo-400">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  TypeScript 输出
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  {state.success ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      <span className="text-indigo-400">TypeScript 输出</span>
+                    </>
+                  ) : state.error ? (
+                    <>
+                      <XCircle className="w-5 h-5 text-red-500" />
+                      <span className="text-red-400">生成失败</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-zinc-600" />
+                      <span className="text-zinc-400">TypeScript 输出</span>
+                    </>
+                  )}
                 </CardTitle>
-                {state.data?.metadata && (
-                  <CardDescription className="text-zinc-500">
-                    耗时: {state.data.metadata.duration}ms | 接口数: {state.data.metadata.interfaceCount}
+                {state.metadata && (
+                  <CardDescription className="text-zinc-500 flex gap-3 mt-1 flex-wrap">
+                    <span>耗时: {state.metadata.duration}ms</span>
+                    {state.metadata.interfaceCount !== undefined && (
+                      <span>接口数: {state.metadata.interfaceCount}</span>
+                    )}
+                    {state.metadata.attempts && state.metadata.attempts > 1 && (
+                      <span className="text-amber-500">自愈重试: {state.metadata.attempts}次</span>
+                    )}
+                    {state.metadata.provider && (
+                      <span className="text-indigo-400">Provider: {state.metadata.provider}</span>
+                    )}
                   </CardDescription>
                 )}
               </div>
               <div className="flex gap-2">
-                {state.data?.typescript && (
+                {state.typescript && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -132,6 +161,7 @@ export function GeneratorForm() {
             </div>
           </CardHeader>
           <CardContent className="flex-grow p-0 relative group overflow-hidden">
+            {/* 错误展示 */}
             {state.error && (
               <div className="absolute inset-0 z-10 bg-red-900/20 backdrop-blur-sm flex items-center justify-center p-6 text-center">
                 <div className="space-y-2 max-w-md">
@@ -143,9 +173,10 @@ export function GeneratorForm() {
               </div>
             )}
             
+            {/* 代码展示 */}
             <pre className="p-6 font-mono text-sm overflow-auto h-full premium-scrollbar">
-              {state.data?.typescript ? (
-                <code className="text-indigo-300">{state.data.typescript}</code>
+              {state.typescript ? (
+                <code className="text-indigo-300">{state.typescript}</code>
               ) : (
                 <div className="h-full flex items-center justify-center text-zinc-600 italic">
                   等待输入 JSON 数据并提交...

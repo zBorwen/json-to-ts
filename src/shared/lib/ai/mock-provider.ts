@@ -10,8 +10,10 @@ export class MockAIProvider implements AIProvider {
   /**
    * 模拟延迟与流式返回
    * 生成的代码包含故意的瑕疵，用于测试自愈闭环
+   * @param _prompt 用户输入 (忽略)
+   * @param _systemPrompt 系统提示 (忽略)
    */
-  async generate(prompt: string): Promise<ReadableStream<string>> {
+  async generate(_prompt: string, _systemPrompt?: string): Promise<ReadableStream<string>> {
     // 模拟一段符合规范的代码片段
     const chunks = [
       "/**\n * 自动生成的响应模型 (Enterprise Standard)\n */\n",
