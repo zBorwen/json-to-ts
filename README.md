@@ -11,7 +11,7 @@
 
 ### 🧠 Architecture Philosophy
 
-本项目是基于对 AI 驱动软件工程的深度思考——即**"确定性外壳包裹概率内核"**（Deterministic Shell wrapping a Probabilistic Core）架构思想的实战演习。
+本项目是基于对 AI 驱动软件工程的深度思考——即**确定性外壳包裹概率内核**（Deterministic Shell wrapping a Probabilistic Core）架构思想的实战演习。
 
 在这个系统中，LLM（概率内核）负责语义理解与复杂逻辑的初步推导，而由 TypeScript AST 校验器、Zod 契约以及严格的工程规约组成的"确定性外壳"，则确保了最终产出的代码具备 100% 的可靠性与一致性。我们不试图消除 AI 的随机性，而是将其约束在工程化的确定性边界之内。
 
@@ -68,7 +68,7 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-org/json-to-ts.git
+git clone https://github.com/zBorwen/json-to-ts.git
 cd json-to-ts
 ```
 
